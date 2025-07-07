@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>轉轉小瑪莉</title>
+  <style>
+    body { background:#000; color:#fff; text-align:center; font-family:"Microsoft JhengHei" }
+    h1 { color:gold; margin:24px 0 12px }
+    #play, #submit { width:80%; max-width:320px; margin:12px auto; padding:14px 0;
+      font-size:1.1em; border:none; border-radius:8px }
+    #play { background:#28a745; color:#fff }
+    #submit { background:#ffc107; color:#000; display:none }
+    #wrapSubmit{display:flex; justify-content:center}
+    video { width:100%; max-width:420px; border-radius:12px; display:none; margin-top:20px }
+    input { width:80%; max-width:320px; padding:10px; margin:6px 0; border-radius:6px; border:none; font-size:1em }
+    #msg { margin:18px 0 8px; font-size:1.4em; font-weight:bold }
+  </style>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+  <h1>🎰 轉轉小瑪莉</h1>
+  <button id="play" disabled>載入中…</button>
+  <video id="mv" playsinline>
+    <source src="https://voom-obs.line-scdn.net/hlCRdDEcYL206cTxjDScoFBNJJEIQdnV_LAIXSjV7EgYpVB9hLCd0ChpvBhcjSzV8LDMXCyt7DQAXSHVzAw0bTyF7K18pSBQ7ADAMTDFBN1Q-XQ/mp4">
+  </video>
+  <div id="msg"></div>
+  <div id="form" style="display:none">
+    <input id="username" placeholder="姓名" />
+    <input id="phone" placeholder="手機" />
+    <div id="wrapSubmit"><button id="submit">送出</button></div>
+  </div>
+  <audio id="winSound" preload="auto"
+         src="https://aiwe.cc/wp-content/uploads/2025/07/56ab24c15b72a457069c5ea42fcfc640.mp3"></audio>
+  <audio id="loseSound" preload="auto"
+         src="https://aiwe.cc/wp-content/uploads/2025/07/b3a7a4e64bcd8aabe4cabe0e55b57af5.mp3"></audio>
+<script>
+const LIFF_ID = "1656871455-vE1ZZLJ7";
+const API     = "https://script.google.com/macros/s/AKfycbwK8jECGayT0i7lXhbxs4GLP9gc2LRXibgd5F4q3UbFuTCQAtp6_04_YpsS3xTwLNQX3A/exec";
+let uid="", uname="";
+const btnPlay=document.getElementById("play"),
+      mv=document.getElementById("mv"),
+      msg=document.getElementById("msg"),
+      form=document.getElementById("form"),
+      inName=document.getElementById("username"),
+      inPhone=document.getElementById("phone"),
+      btnSend=document.getElementById("submit"),
+      winSound=document.getElementById("winSound"),
+      loseSound=document.getElementById("loseSound");
+
+(async()=>{
+  await liff.init({liffId:LIFF_ID});
+  if(!liff.isLoggedIn()){ liff.login(); return; }
+  const profile=await liff.getProfile();
+  uid=profile.userId;
+  uname=profile.displayName;
+  btnPlay.disabled=false;
+  btnPlay.textContent="開始遊戲";
+})();
+
+btnPlay.onclick=()=>{
+  winSound.load(); loseSound.load();
+  btnPlay.style.display="none";
+  msg.textContent="";
+  mv.style.display="block";
+  mv.currentTime=0;
+  mv.play();
+  setTimeout(()=>mv.pause(),7000);
+};
+
+mv.onpause=async ()=>{
+  mv.style.display="none";
+  const win=Math.random()<0.5;
+  msg.textContent=win?"🎊 恭喜中獎！":"😭 再接再厲！";
+  fetch(API,{
+    method:"POST", mode:"no-cors", headers:{"Content-Type":"text/plain"},
+    body:JSON.stringify({act:"draw",userId:uid,displayName:uname,result:win?"WIN":"MISS"})
+  });
+  if(win){
+    try{ await winSound.play(); }catch(_){}
+    form.style.display="block";
+    inName.value=uname;
+    btnSend.style.display="block";
+  } else {
+    try{ await loseSound.play(); }catch(_){}
+  }
+};
+
+btnSend.onclick=()=>{
+  if(!inName.value.trim() || !inPhone.value.trim()){
+    alert("請填姓名與手機");
+    return;
+  }
+  btnSend.disabled=true;
+  btnSend.innerText="送出中…";
+  btnSend.style.background="#555";
+
+  fetch(API,{
+    method:"POST", mode:"no-cors", headers:{"Content-Type":"text/plain"},
+    body:JSON.stringify({
+      act:"winner",
+      userId:uid,
+      displayName:uname,
+      prize:"預設獎項",
+      name:inName.value.trim(),
+      phone:inPhone.value.trim()
+    })
+  }).then(()=>{
+    msg.textContent="✅ 已送出！感謝填寫";
+    btnSend.disabled=false;
+    btnSend.style.background="#fff";
+    btnSend.style.color="#000";
+    btnSend.innerText="點右上角 X 返回";
+    btnSend.onclick=()=>liff.closeWindow();
+  }).catch(()=>{
+    alert("送出失敗");
+    btnSend.disabled=false;
+    btnSend.innerText="重新送出";
+    btnSend.style.background="#ffc107";
+  });
+};
+</script>
+</body>
+</html>
