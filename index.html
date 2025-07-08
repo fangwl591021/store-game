@@ -73,7 +73,7 @@ mv.onpause=async ()=>{
   const win=Math.random()<0.5;
   msg.textContent=win?"🎊 恭喜中獎！":"😭 再接再厲！";
   fetch(API,{
-    method:"POST", mode:"no-cors", headers:{"Content-Type":"text/plain"},
+    method:"POST",  headers:{"Content-Type":"text/plain"},
     body:JSON.stringify({act:"draw",userId:uid,displayName:uname,result:win?"WIN":"MISS"})
   });
   if(win){
