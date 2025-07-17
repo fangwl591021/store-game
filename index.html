@@ -34,92 +34,117 @@
          src="https://aiwe.cc/wp-content/uploads/2025/07/56ab24c15b72a457069c5ea42fcfc640.mp3"></audio>
   <audio id="loseSound" preload="auto"
          src="https://aiwe.cc/wp-content/uploads/2025/07/b3a7a4e64bcd8aabe4cabe0e55b57af5.mp3"></audio>
+
 <script>
 const LIFF_ID = "2007161529-wrNrLV7Z";
 const API     = "https://script.google.com/macros/s/AKfycbxjfyWBuKNg-mbObiL1mb9NcCni5pDZTxp9-EnUAMyCCd-Vqokfb6plSCh_-Q9IvYEQgw/exec";
-let uid="", uname="";
-const btnPlay=document.getElementById("play"),
-      mv=document.getElementById("mv"),
-      msg=document.getElementById("msg"),
-      form=document.getElementById("form"),
-      inName=document.getElementById("username"),
-      inPhone=document.getElementById("phone"),
-      btnSend=document.getElementById("submit"),
-      winSound=document.getElementById("winSound"),
-      loseSound=document.getElementById("loseSound");
 
-(async()=>{
-  await liff.init({liffId:LIFF_ID});
-  if(!liff.isLoggedIn()){ liff.login(); return; }
-  const profile=await liff.getProfile();
-  uid=profile.userId;
-  uname=profile.displayName;
-  btnPlay.disabled=false;
-  btnPlay.textContent="開始遊戲";
+let uid = "", uname = "";
+const btnPlay  = document.getElementById("play");
+const mv       = document.getElementById("mv");
+const msg      = document.getElementById("msg");
+const form     = document.getElementById("form");
+const inName   = document.getElementById("username");
+const inPhone  = document.getElementById("phone");
+const btnSend  = document.getElementById("submit");
+const winSound = document.getElementById("winSound");
+const loseSound= document.getElementById("loseSound");
+
+// 初始化 LIFF
+(async () => {
+  await liff.init({ liffId: LIFF_ID });
+  if (!liff.isLoggedIn()) {
+    liff.login();
+    return;
+  }
+  const profile = await liff.getProfile();
+  uid   = profile.userId;
+  uname = profile.displayName;
+  btnPlay.disabled     = false;
+  btnPlay.textContent  = "開始遊戲";
 })();
 
-btnPlay.onclick=()=>{
-  winSound.load(); loseSound.load();
-  btnPlay.style.display="none";
-  msg.textContent="";
-  mv.style.display="block";
-  mv.currentTime=0;
+// 點擊「開始遊戲」
+btnPlay.onclick = () => {
+  winSound.load();
+  loseSound.load();
+  btnPlay.style.display = "none";
+  msg.textContent       = "";
+  mv.style.display      = "block";
+  mv.currentTime        = 0;
   mv.play();
-  setTimeout(()=>mv.pause(),7000);
+  // 7 秒後停止影片
+  setTimeout(() => mv.pause(), 7000);
 };
 
-mv.onpause=async ()=>{
-  mv.style.display="none";
-  const win=Math.random()<0.5;
-  msg.textContent=win?"🎊 恭喜中獎！":"😭 再接再厲！";
-  fetch(API,{
-    method:"POST", mode: "no-cors", headers:{"Content-Type":"text/plain"},
-    body:JSON.stringify({act:"draw",userId:uid,displayName:uname,result:win?"WIN":"MISS"})
-  });
-  if(win){
-    try{ await winSound.play(); }catch(_){}
-    form.style.display="block";
-    inName.value=uname;
-    btnSend.style.display="block";
+// 影片暫停後判定中獎並送出 draw
+mv.onpause = async () => {
+  mv.style.display = "none";
+  const win = Math.random() < 0.5;
+  msg.textContent = win ? "🎊 恭喜中獎！" : "😭 再接再厲！";
+
+  // 上報 draw 動作
+  try {
+    const res = await fetch(API, {
+      method: "POST",
+      mode:   "cors",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({
+        action:      "draw",        // 必須與後端對應
+        userId:      uid,
+        displayName: uname,
+        result:      win ? "WIN" : "MISS"
+      })
+    });
+    const j = await res.json();
+    if (j.status !== "ok") throw new Error(j.message);
+  } catch (e) {
+    console.error("draw 失敗：", e);
+  }
+
+  if (win) {
+    form.style.display = "block";
+    inName.value       = uname;
+    btnSend.style.display = "block";
   } else {
-    try{ await loseSound.play(); }catch(_){}
+    try { await loseSound.play(); } catch (_) {}
   }
 };
 
-btnSend.onclick=()=>{
-  if(!inName.value.trim() || !inPhone.value.trim()){
+// 使用者填寫姓名手機後送出 winner
+btnSend.onclick = async () => {
+  if (!inName.value.trim() || !inPhone.value.trim()) {
     alert("請填姓名與手機");
     return;
   }
-  btnSend.disabled=true;
-  btnSend.innerText="送出中…";
-  btnSend.style.background="#555";
+  btnSend.disabled   = true;
+  btnSend.textContent= "送出中…";
 
-  fetch(API,{
-    method:"POST", mode:"no-cors", headers:{"Content-Type":"text/plain"},
-    body:JSON.stringify({
-      act:"winner",
-      userId:uid,
-      displayName:uname,
-      prize:"預設獎項",
-      name:inName.value.trim(),
-      phone:inPhone.value.trim()
-    })
-  }).then(()=>{
-    msg.textContent="✅ 已送出！感謝填寫";
-    btnSend.disabled=false;
-    btnSend.style.background="#fff";
-    btnSend.style.color="#000";
-    btnSend.innerText="點右上角 X 返回查詢獎項";
-    btnSend.onclick=()=>liff.closeWindow();
-  }).catch(()=>{
-    alert("送出失敗");
-    btnSend.disabled=false;
-    btnSend.innerText="重新送出";
-    btnSend.style.background="#ffc107";
-  });
+  try {
+    const res = await fetch(API, {
+      method: "POST",
+      mode:   "cors",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({
+        action:      "winner",     // 必須與後端對應
+        userId:      uid,
+        prize:       "預設獎項",
+        name:        inName.value.trim(),
+        phone:       inPhone.value.trim()
+      })
+    });
+    const j = await res.json();
+    if (j.status !== "ok") throw new Error(j.message);
+
+    msg.textContent = "✅ 已送出！感謝填寫";
+    btnSend.textContent = "完成";
+    btnSend.onclick = () => liff.closeWindow();
+  } catch (e) {
+    alert("送出失敗：" + e.message);
+    btnSend.disabled    = false;
+    btnSend.textContent = "重新送出";
+  }
 };
 </script>
 </body>
 </html>
-
