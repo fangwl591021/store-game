@@ -5,14 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>轉轉小瑪莉</title>
   <style>
-    body { background:#000; color:#fff; text-align:center; font-family:"Microsoft JhengHei" }
-    h1 { color:gold; margin:24px 0 12px }
-    button,input { width:80%; max-width:320px; margin:12px auto; padding:14px 0;
-      font-size:1.1em; border:none; border-radius:8px; display:block;}
-    #play { background:#28a745; color:#fff; }
-    #submit { background:#ffc107; color:#000; display:none; }
-    video { width:100%; max-width:420px; border-radius:12px; display:none; margin-top:20px }
-    #msg { margin:18px 0 8px; font-size:1.4em; font-weight:bold }
+    body { background:#000; color:#fff; text-align:center; font-family:"Microsoft JhengHei" }
+    button,input,video,#msg { margin:12px auto; display:block }
+    button,input { width:80%; max-width:320px; padding:14px 0; border:none; border-radius:8px; font-size:1.1em }
+    #play { background:#28a745; color:#fff }
+    #submit { background:#ffc107; color:#000; display:none }
+    video { width:100%; max-width:420px; border-radius:12px; display:none }
+    #msg { font-size:1.4em; font-weight:bold }
   </style>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
@@ -25,7 +24,7 @@
   <div id="msg"></div>
   <div id="form" style="display:none">
     <input id="username" placeholder="姓名"/>
-    <input id="phone" placeholder="手機"/>
+    <input id="phone"    placeholder="手機"/>
     <button id="submit">送出</button>
   </div>
   <audio id="winSound"  preload="auto"
@@ -35,7 +34,7 @@
 
 <script>
 const LIFF_ID = "2007161529-wrNrLV7Z";
-const API     = "https://script.google.com/macros/s/AKfycbzd-LuS2ERkBGMw84RzumD4EsRSy_WOnYVnKvdHoCAFA3k1wrgkVqqsD6VIuTUgOIjiBQ/exec";
+const API     = "https://script.google.com/macros/s/AKfycbxwVxzrD0QbMIZk_B8nu_Nr0JhUQwsuWYiLE_6PhxUGZO3LTgP2iaHaGhPgXxfQGaGJEQ/exec";
 
 let uid="", uname="";
 const btnPlay   = document.getElementById("play");
@@ -48,49 +47,45 @@ const btnSend   = document.getElementById("submit");
 const winSound  = document.getElementById("winSound");
 const loseSound = document.getElementById("loseSound");
 
-// 初始化 LIFF 與取得 userId、displayName
-(async () => {
+// LIFF 初始化
+(async()=>{
   await liff.init({ liffId: LIFF_ID });
-  if (!liff.isLoggedIn()) {
-    liff.login();
-    return;
-  }
-  const profile = await liff.getProfile();
-  uid   = profile.userId;
-  uname = profile.displayName;
-  btnPlay.disabled    = false;
-  btnPlay.textContent = "開始遊戲";
+  if(!liff.isLoggedIn()) return liff.login();
+  const p = await liff.getProfile();
+  uid   = p.userId;
+  uname = p.displayName;
+  btnPlay.disabled   = false;
+  btnPlay.textContent= "開始遊戲";
 })();
 
 // 開始遊戲
-btnPlay.onclick = () => {
+btnPlay.onclick = ()=>{
   winSound.load(); loseSound.load();
   btnPlay.style.display = "none";
   msg.textContent = "";
   mv.style.display = "block";
   mv.currentTime = 0;
   mv.play();
-  setTimeout(() => mv.pause(), 7000);
+  setTimeout(()=>mv.pause(),7000);
 };
 
-// 影片暫停後觸發 draw
-mv.onpause = async () => {
+// 影片暫停 → draw
+mv.onpause = ()=>{
   mv.style.display = "none";
-  const win = Math.random() < 0.5;
-  msg.textContent = win ? "🎊 恭喜中獎！" : "😭 再接再厲！";
+  const win = Math.random()<0.5;
+  msg.textContent = win?"🎊 恭喜中獎！":"😭 再接再厲！";
 
   // GET draw
   fetch(
-    `${API
-      }?action=draw
-      &userId=${encodeURIComponent(uid)}
-      &displayName=${encodeURIComponent(uname)}
-      &result=${win?"WIN":"MISS"}
-      &_=${Date.now()}`,
-    { mode: 'cors' }
+    `${API}?action=draw`
+    +`&userId=${encodeURIComponent(uid)}`
+    +`&displayName=${encodeURIComponent(uname)}`
+    +`&result=${win?"WIN":"MISS"}`
+    +`&_=${Date.now()}`,
+    { mode:'cors' }
   );
 
-  if (win) {
+  if(win){
     form.style.display = "block";
     inName.value = uname;
     btnSend.style.display = "block";
@@ -99,33 +94,32 @@ mv.onpause = async () => {
   }
 };
 
-// 使用者送出姓名與手機 → GET redeem
-btnSend.onclick = async () => {
-  if (!inName.value.trim() || !inPhone.value.trim()) {
+// 送出姓名+手機 → redeem
+btnSend.onclick = async ()=>{
+  if(!inName.value.trim()||!inPhone.value.trim()){
     return alert("請填姓名與手機");
   }
-  btnSend.disabled = true;
-  btnSend.textContent = "送出中…";
+  btnSend.disabled=true;
+  btnSend.textContent="送出中…";
 
   try {
     const res = await fetch(
-      `${API
-        }?action=redeem
-        &userId=${encodeURIComponent(uid)}
-        &name=${encodeURIComponent(inName.value.trim())}
-        &phone=${encodeURIComponent(inPhone.value.trim())}
-        &_=${Date.now()}`,
-      { mode: 'cors' }
+      `${API}?action=redeem`
+      +`&userId=${encodeURIComponent(uid)}`
+      +`&name=${encodeURIComponent(inName.value.trim())}`
+      +`&phone=${encodeURIComponent(inPhone.value.trim())}`
+      +`&_=${Date.now()}`,
+      { mode:'cors' }
     );
     const j = await res.json();
-    if (j.status !== 'ok') throw new Error(j.message);
-    msg.textContent = `✅ 已送出！領取時間：${j.data}`;
-    btnSend.textContent = "完成";
-    btnSend.onclick = () => liff.closeWindow();
-  } catch (e) {
-    alert("送出失敗：" + e.message);
-    btnSend.disabled    = false;
-    btnSend.textContent = "重新送出";
+    if(j.status!=='ok') throw new Error(j.message);
+    msg.textContent=`✅ 已送出！領取時間：${j.data}`;
+    btnSend.textContent="完成";
+    btnSend.onclick=()=>liff.closeWindow();
+  } catch(e) {
+    alert("送出失敗："+e.message);
+    btnSend.disabled=false;
+    btnSend.textContent="重新送出";
   }
 };
 </script>
