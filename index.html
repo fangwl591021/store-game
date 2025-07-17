@@ -40,15 +40,15 @@ const LIFF_ID = "2007161529-wrNrLV7Z";
 const API     = "https://script.google.com/macros/s/AKfycbxjfyWBuKNg-mbObiL1mb9NcCni5pDZTxp9-EnUAMyCCd-Vqokfb6plSCh_-Q9IvYEQgw/exec";
 
 let uid = "", uname = "";
-const btnPlay  = document.getElementById("play");
-const mv       = document.getElementById("mv");
-const msg      = document.getElementById("msg");
-const form     = document.getElementById("form");
-const inName   = document.getElementById("username");
-const inPhone  = document.getElementById("phone");
-const btnSend  = document.getElementById("submit");
-const winSound = document.getElementById("winSound");
-const loseSound= document.getElementById("loseSound");
+const btnPlay   = document.getElementById("play");
+const mv        = document.getElementById("mv");
+const msg       = document.getElementById("msg");
+const form      = document.getElementById("form");
+const inName    = document.getElementById("username");
+const inPhone   = document.getElementById("phone");
+const btnSend   = document.getElementById("submit");
+const winSound  = document.getElementById("winSound");
+const loseSound = document.getElementById("loseSound");
 
 // 初始化 LIFF
 (async () => {
@@ -60,8 +60,8 @@ const loseSound= document.getElementById("loseSound");
   const profile = await liff.getProfile();
   uid   = profile.userId;
   uname = profile.displayName;
-  btnPlay.disabled     = false;
-  btnPlay.textContent  = "開始遊戲";
+  btnPlay.disabled    = false;
+  btnPlay.textContent = "開始遊戲";
 })();
 
 // 點擊「開始遊戲」
@@ -73,76 +73,70 @@ btnPlay.onclick = () => {
   mv.style.display      = "block";
   mv.currentTime        = 0;
   mv.play();
-  // 7 秒後停止影片
   setTimeout(() => mv.pause(), 7000);
 };
 
-// 影片暫停後判定中獎並送出 draw
+// 影片暫停後送 draw
 mv.onpause = async () => {
   mv.style.display = "none";
   const win = Math.random() < 0.5;
   msg.textContent = win ? "🎊 恭喜中獎！" : "😭 再接再厲！";
 
-  // 上報 draw 動作
   try {
     const res = await fetch(API, {
       method: "POST",
-      mode:   "cors",
-      headers:{ "Content-Type":"application/json" },
+      mode:   "cors",                // 啟用 CORS
+      headers:{ "Content-Type":"text/plain" },  // Simple header，不觸發 preflight
       body: JSON.stringify({
-        action:      "draw",        // 必須與後端對應
+        action:      "draw",      
         userId:      uid,
         displayName: uname,
         result:      win ? "WIN" : "MISS"
       })
     });
-    const j = await res.json();
-    if (j.status !== "ok") throw new Error(j.message);
+    // 不使用 res.json() (因為 text/plain)，Server 仍可讀 JSON
   } catch (e) {
     console.error("draw 失敗：", e);
   }
 
   if (win) {
-    form.style.display = "block";
-    inName.value       = uname;
+    form.style.display    = "block";
+    inName.value          = uname;
     btnSend.style.display = "block";
   } else {
     try { await loseSound.play(); } catch (_) {}
   }
 };
 
-// 使用者填寫姓名手機後送出 winner
+// 送出 winner
 btnSend.onclick = async () => {
   if (!inName.value.trim() || !inPhone.value.trim()) {
-    alert("請填姓名與手機");
-    return;
+    return alert("請填姓名與手機");
   }
-  btnSend.disabled   = true;
-  btnSend.textContent= "送出中…";
+  btnSend.disabled    = true;
+  btnSend.textContent = "送出中…";
 
   try {
     const res = await fetch(API, {
       method: "POST",
       mode:   "cors",
-      headers:{ "Content-Type":"application/json" },
+      headers:{ "Content-Type":"text/plain" },  // Simple header
       body: JSON.stringify({
-        action:      "winner",     // 必須與後端對應
-        userId:      uid,
-        prize:       "預設獎項",
-        name:        inName.value.trim(),
-        phone:       inPhone.value.trim()
+        action: "winner",  
+        userId: uid,
+        prize:  "預設獎項",
+        name:   inName.value.trim(),
+        phone:  inPhone.value.trim()
       })
     });
-    const j = await res.json();
-    if (j.status !== "ok") throw new Error(j.message);
-
-    msg.textContent = "✅ 已送出！感謝填寫";
-    btnSend.textContent = "完成";
-    btnSend.onclick = () => liff.closeWindow();
+    // 同上，不必呼叫 res.json()
+    msg.textContent      = "✅ 已送出！感謝填寫";
+    btnSend.textContent  = "完成";
+    btnSend.onclick      = () => liff.closeWindow();
   } catch (e) {
     alert("送出失敗：" + e.message);
-    btnSend.disabled    = false;
-    btnSend.textContent = "重新送出";
+    btnSend.disabled     = false;
+    btnSend.textContent  = "重新送出";
   }
 };
 </script>
