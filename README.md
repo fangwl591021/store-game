@@ -1,2 +1,2 @@
 # store-game
-LINE抽獎
+全民大抽獎抽獎
