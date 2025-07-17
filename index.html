@@ -1,19 +1,17 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>轉轉小瑪莉</title>
   <style>
     body { background:#000; color:#fff; text-align:center; font-family:"Microsoft JhengHei" }
     h1 { color:gold; margin:24px 0 12px }
-    #play, #submit { width:80%; max-width:320px; margin:12px auto; padding:14px 0;
-      font-size:1.1em; border:none; border-radius:8px }
-    #play { background:#28a745; color:#fff }
-    #submit { background:#ffc107; color:#000; display:none }
-    #wrapSubmit{display:flex; justify-content:center}
+    button,input { width:80%; max-width:320px; margin:12px auto; padding:14px 0;
+      font-size:1.1em; border:none; border-radius:8px; display:block;}
+    #play { background:#28a745; color:#fff; }
+    #submit { background:#ffc107; color:#000; display:none; }
     video { width:100%; max-width:420px; border-radius:12px; display:none; margin-top:20px }
-    input { width:80%; max-width:320px; padding:10px; margin:6px 0; border-radius:6px; border:none; font-size:1em }
     #msg { margin:18px 0 8px; font-size:1.4em; font-weight:bold }
   </style>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -26,20 +24,20 @@
   </video>
   <div id="msg"></div>
   <div id="form" style="display:none">
-    <input id="username" placeholder="姓名" />
-    <input id="phone" placeholder="手機" />
-    <div id="wrapSubmit"><button id="submit">送出</button></div>
+    <input id="username" placeholder="姓名"/>
+    <input id="phone" placeholder="手機"/>
+    <button id="submit">送出</button>
   </div>
-  <audio id="winSound" preload="auto"
+  <audio id="winSound"  preload="auto"
          src="https://aiwe.cc/wp-content/uploads/2025/07/56ab24c15b72a457069c5ea42fcfc640.mp3"></audio>
   <audio id="loseSound" preload="auto"
          src="https://aiwe.cc/wp-content/uploads/2025/07/b3a7a4e64bcd8aabe4cabe0e55b57af5.mp3"></audio>
 
 <script>
 const LIFF_ID = "2007161529-wrNrLV7Z";
-const API     = "https://script.google.com/macros/s/AKfycbxjfyWBuKNg-mbObiL1mb9NcCni5pDZTxp9-EnUAMyCCd-Vqokfb6plSCh_-Q9IvYEQgw/exec";
+const API     = "https://script.google.com/macros/s/AKfycbzd-LuS2ERkBGMw84RzumD4EsRSy_WOnYVnKvdHoCAFA3k1wrgkVqqsD6VIuTUgOIjiBQ/exec";
 
-let uid = "", uname = "";
+let uid="", uname="";
 const btnPlay   = document.getElementById("play");
 const mv        = document.getElementById("mv");
 const msg       = document.getElementById("msg");
@@ -50,7 +48,7 @@ const btnSend   = document.getElementById("submit");
 const winSound  = document.getElementById("winSound");
 const loseSound = document.getElementById("loseSound");
 
-// 初始化 LIFF
+// 初始化 LIFF 與取得 userId、displayName
 (async () => {
   await liff.init({ liffId: LIFF_ID });
   if (!liff.isLoggedIn()) {
@@ -64,79 +62,70 @@ const loseSound = document.getElementById("loseSound");
   btnPlay.textContent = "開始遊戲";
 })();
 
-// 點擊「開始遊戲」
+// 開始遊戲
 btnPlay.onclick = () => {
-  winSound.load();
-  loseSound.load();
+  winSound.load(); loseSound.load();
   btnPlay.style.display = "none";
-  msg.textContent       = "";
-  mv.style.display      = "block";
-  mv.currentTime        = 0;
+  msg.textContent = "";
+  mv.style.display = "block";
+  mv.currentTime = 0;
   mv.play();
   setTimeout(() => mv.pause(), 7000);
 };
 
-// 影片暫停後送 draw
+// 影片暫停後觸發 draw
 mv.onpause = async () => {
   mv.style.display = "none";
   const win = Math.random() < 0.5;
   msg.textContent = win ? "🎊 恭喜中獎！" : "😭 再接再厲！";
 
-  try {
-    const res = await fetch(API, {
-      method: "POST",
-      mode:   "cors",                // 啟用 CORS
-      headers:{ "Content-Type":"text/plain" },  // Simple header，不觸發 preflight
-      body: JSON.stringify({
-        action:      "draw",      
-        userId:      uid,
-        displayName: uname,
-        result:      win ? "WIN" : "MISS"
-      })
-    });
-    // 不使用 res.json() (因為 text/plain)，Server 仍可讀 JSON
-  } catch (e) {
-    console.error("draw 失敗：", e);
-  }
+  // GET draw
+  fetch(
+    `${API
+      }?action=draw
+      &userId=${encodeURIComponent(uid)}
+      &displayName=${encodeURIComponent(uname)}
+      &result=${win?"WIN":"MISS"}
+      &_=${Date.now()}`,
+    { mode: 'cors' }
+  );
 
   if (win) {
-    form.style.display    = "block";
-    inName.value          = uname;
+    form.style.display = "block";
+    inName.value = uname;
     btnSend.style.display = "block";
   } else {
-    try { await loseSound.play(); } catch (_) {}
+    loseSound.play().catch(()=>{});
   }
 };
 
-// 送出 winner
+// 使用者送出姓名與手機 → GET redeem
 btnSend.onclick = async () => {
   if (!inName.value.trim() || !inPhone.value.trim()) {
     return alert("請填姓名與手機");
   }
-  btnSend.disabled    = true;
+  btnSend.disabled = true;
   btnSend.textContent = "送出中…";
 
   try {
-    const res = await fetch(API, {
-      method: "POST",
-      mode:   "cors",
-      headers:{ "Content-Type":"text/plain" },  // Simple header
-      body: JSON.stringify({
-        action: "winner",  
-        userId: uid,
-        prize:  "預設獎項",
-        name:   inName.value.trim(),
-        phone:  inPhone.value.trim()
-      })
-    });
-    // 同上，不必呼叫 res.json()
-    msg.textContent      = "✅ 已送出！感謝填寫";
-    btnSend.textContent  = "完成";
-    btnSend.onclick      = () => liff.closeWindow();
+    const res = await fetch(
+      `${API
+        }?action=redeem
+        &userId=${encodeURIComponent(uid)}
+        &name=${encodeURIComponent(inName.value.trim())}
+        &phone=${encodeURIComponent(inPhone.value.trim())}
+        &_=${Date.now()}`,
+      { mode: 'cors' }
+    );
+    const j = await res.json();
+    if (j.status !== 'ok') throw new Error(j.message);
+    msg.textContent = `✅ 已送出！領取時間：${j.data}`;
+    btnSend.textContent = "完成";
+    btnSend.onclick = () => liff.closeWindow();
   } catch (e) {
     alert("送出失敗：" + e.message);
-    btnSend.disabled     = false;
-    btnSend.textContent  = "重新送出";
+    btnSend.disabled    = false;
+    btnSend.textContent = "重新送出";
   }
 };
 </script>
